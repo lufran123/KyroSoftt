@@ -59,3 +59,4 @@ steps:
   inputs:
     targetPath: '$(Agent.TempDirectory)/TestResults'
     artifact: 'reportes-pruebas'
+# Verificación de ejecución automática del laboratorio VII.
