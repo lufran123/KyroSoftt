@@ -1,13 +1,18 @@
-# Ejecuta CI con cada push a cualquiera de las ramas principales.
+# Ejecuta CI con cada push a las ramas principales.
 trigger:
   branches:
     include:
       - main
       - master
 
-# Las pruebas usan SQLite temporal; no necesitan el SQL Server local.
+# Desactiva las ejecuciones automáticas por pull requests.
+pr: none
+
+# Ejecuta las tareas en tu computadora.
 pool:
-  vmImage: 'ubuntu-latest'
+  name: 'Default'
+  demands:
+    - Agent.Name -equals Luna-PC
 
 variables:
   buildConfiguration: 'Release'
@@ -16,26 +21,26 @@ steps:
 # Descarga el repositorio.
 - checkout: self
 
-# Instala el SDK correspondiente a net8.0.
+# Instala .NET 8.
 - task: UseDotNet@2
   displayName: 'Instalar .NET 8'
   inputs:
     packageType: 'sdk'
     version: '8.0.x'
 
-# Restaura NuGet para la aplicación y sus pruebas.
+# Restaura las dependencias.
 - script: dotnet restore SistemaReservasLaboratorios.sln
   displayName: 'Restaurar dependencias'
 
-# Compila toda la solución en Release.
+# Compila la solución.
 - script: dotnet build SistemaReservasLaboratorios.sln --configuration $(buildConfiguration) --no-restore
   displayName: 'Compilar en Release'
 
-# Ejecuta todas las pruebas del proyecto, incluidas las de integración.
+# Ejecuta pruebas unitarias y de integración.
 - script: dotnet test SistemaReservasLaboratorios.Tests/SistemaReservasLaboratorios.Tests.csproj --configuration $(buildConfiguration) --no-build --logger "trx;LogFileName=resultados.trx" --results-directory "$(Agent.TempDirectory)/TestResults"
   displayName: 'Ejecutar pruebas unitarias e integración'
 
-# Publica el TRX en Tests incluso si alguna prueba falla.
+# Publica los resultados aunque alguna prueba falle.
 - task: PublishTestResults@2
   displayName: 'Publicar reporte de pruebas'
   condition: succeededOrFailed()
@@ -47,10 +52,10 @@ steps:
     failTaskOnMissingResultsFile: true
     testRunTitle: 'KyroSoft - $(Build.BuildNumber)'
 
-# Conserva también el archivo TRX como descarga de la ejecución.
+# Guarda los archivos TRX cuando la ejecución termina correctamente.
 - task: PublishPipelineArtifact@1
   displayName: 'Guardar archivos TRX'
-  condition: and(succeededOrFailed(), eq(variables['Agent.JobStatus'], 'Succeeded'))
+  condition: succeeded()
   inputs:
     targetPath: '$(Agent.TempDirectory)/TestResults'
     artifact: 'reportes-pruebas'
